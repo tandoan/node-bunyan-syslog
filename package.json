@@ -10,11 +10,9 @@
     "syslog"
   ],
   "repository": {
-    "type": "git",
-    "url": "https://github.com/joyent/node-bunyan-syslog.git"
+    "type": "git"
   },
   "bugs": {
-    "url": "https://github.com/joyent/node-bunyan-syslog/issues"
   },
   "dependencies": {
     "assert-plus": "0.1.5",
