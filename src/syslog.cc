@@ -2,119 +2,117 @@
 #include <string.h>
 #include <syslog.h>
 
-#include <node.h>
-#include <v8.h>
-#include <nan.h>
+#include <napi.h>
 
-using namespace v8;
+using namespace Napi;
 
-#define RETURN_EXCEPTION(MSG)                                           \
-	Nan::ThrowError(MSG)
+// -------------------------
+// Helper Macros
 
-#define RETURN_ARGS_EXCEPTION(MSG)                                      \
-	Nan::ThrowError(MSG)
+#define THROW_IF_ARGS_EMPTY(info) \
+  if (info.Length() == 0) { \
+    Napi::TypeError::New(info.Env(), "Missing arguments").ThrowAsJavaScriptException(); \
+    return info.Env().Undefined(); \
+  }
 
-#define REQUIRE_ARGS(ARGS)					\
-	if (ARGS.Length() == 0)					\
-		RETURN_ARGS_EXCEPTION("missing arguments");
+#define REQUIRE_INT_ARG(info, I, VAR) \
+  if (info.Length() <= (I) || !info[I].IsNumber()) { \
+    Napi::TypeError::New(info.Env(), "Argument " #I " must be an integer").ThrowAsJavaScriptException(); \
+    return info.Env().Undefined(); \
+  } \
+  int VAR = info[I].As<Number>().Int32Value();
 
-#define REQUIRE_INT_ARG(ARGS, I, VAR)                                   \
-	REQUIRE_ARGS(ARGS);						\
-	if (ARGS.Length() <= (I))					\
-		RETURN_ARGS_EXCEPTION("argument " #I " must be an Integer"); \
-	Nan::MaybeLocal<v8::Integer> _ ## VAR(Nan::To<v8::Integer>(ARGS[I])); \
-	if (_ ## VAR.IsEmpty())					\
-		RETURN_ARGS_EXCEPTION("argument " #I " must be an Integer"); \
-	int VAR = _ ## VAR.ToLocalChecked()->Value();
-
-#define REQUIRE_STRING_ARG(ARGS, I, VAR)				\
-	REQUIRE_ARGS(ARGS);						\
-	if (ARGS.Length() <= (I))					\
-		RETURN_ARGS_EXCEPTION("argument " #I " must be a String"); \
-	Nan::MaybeLocal<v8::String> _ ## VAR(Nan::To<v8::String>(ARGS[I])); \
-	if (_ ## VAR.IsEmpty())					\
-		RETURN_ARGS_EXCEPTION("argument " #I " must be a String"); \
-	Nan::Utf8String VAR(_ ## VAR.ToLocalChecked());
+#define REQUIRE_STRING_ARG(info, I, VAR) \
+  if (info.Length() <= (I) || !info[I].IsString()) { \
+    Napi::TypeError::New(info.Env(), "Argument " #I " must be a string").ThrowAsJavaScriptException(); \
+    return info.Env().Undefined(); \
+  } \
+  std::string VAR = info[I].As<String>().Utf8Value();
 
 
-///--- API
+// -------------------------
+// N-API bindings
 
-NAN_METHOD(Open) {
-	Nan::HandleScope scope;
+Value Open(const CallbackInfo& info) {
+  Env env = info.Env();
+  THROW_IF_ARGS_EMPTY(info);
 
-	REQUIRE_STRING_ARG(info, 0, ident);
-	REQUIRE_INT_ARG(info, 1, logopt);
-	REQUIRE_INT_ARG(info, 2, facility);
+  REQUIRE_STRING_ARG(info, 0, ident);
+  REQUIRE_INT_ARG(info, 1, logopt);
+  REQUIRE_INT_ARG(info, 2, facility);
 
-	openlog(strdup(*ident), logopt, facility);
-
-	return;
+  openlog(strdup(ident.c_str()), logopt, facility);
+  return env.Undefined();
 }
 
-NAN_METHOD(Log) {
-	Nan::HandleScope scope;
+Value Log(const CallbackInfo& info) {
+  Env env = info.Env();
+  THROW_IF_ARGS_EMPTY(info);
 
-	REQUIRE_INT_ARG(info, 0, priority);
-	REQUIRE_STRING_ARG(info, 1, message);
+  REQUIRE_INT_ARG(info, 0, priority);
+  REQUIRE_STRING_ARG(info, 1, message);
 
-	syslog(priority, "%s", *message);
-
-	return;
+  syslog(priority, "%s", message.c_str());
+  return env.Undefined();
 }
 
-NAN_METHOD(Close) {
-	Nan::HandleScope scope;
-
-	closelog();
-
-	return;
+Value Close(const CallbackInfo& info) {
+  Env env = info.Env();
+  closelog();
+  return env.Undefined();
 }
 
-NAN_METHOD(Mask) {
-	Nan::EscapableHandleScope scope;
+Value Mask(const CallbackInfo& info) {
+  Env env = info.Env();
+  REQUIRE_INT_ARG(info, 0, maskpri);
 
-	REQUIRE_INT_ARG(info, 0, maskpri);
-
-	int mask = setlogmask(LOG_UPTO(maskpri));
-
-	info.GetReturnValue().Set(scope.Escape(Nan::New<Integer>(mask)));
+  int mask = setlogmask(LOG_UPTO(maskpri));
+  return Number::New(env, mask);
 }
 
-NAN_MODULE_INIT(init) {
-	Nan::SetMethod(target, "openlog", Open);
-	Nan::SetMethod(target, "syslog", Log);
-	Nan::SetMethod(target, "closelog", Close);
-	Nan::SetMethod(target, "setlogmask", Mask);
+// -------------------------
+// Module initialization
 
-	NODE_DEFINE_CONSTANT(target, LOG_EMERG);
-	NODE_DEFINE_CONSTANT(target, LOG_ALERT);
-	NODE_DEFINE_CONSTANT(target, LOG_ERR);
-	NODE_DEFINE_CONSTANT(target, LOG_WARNING);
-	NODE_DEFINE_CONSTANT(target, LOG_NOTICE);
-	NODE_DEFINE_CONSTANT(target, LOG_INFO);
-	NODE_DEFINE_CONSTANT(target, LOG_DEBUG);
+Object Init(Env env, Object exports) {
+  exports.Set("openlog", Function::New(env, Open));
+  exports.Set("syslog", Function::New(env, Log));
+  exports.Set("closelog", Function::New(env, Close));
+  exports.Set("setlogmask", Function::New(env, Mask));
 
-	NODE_DEFINE_CONSTANT(target, LOG_KERN);
-	NODE_DEFINE_CONSTANT(target, LOG_USER);
-	NODE_DEFINE_CONSTANT(target, LOG_MAIL);
-	NODE_DEFINE_CONSTANT(target, LOG_DAEMON);
-	NODE_DEFINE_CONSTANT(target, LOG_AUTH);
-	NODE_DEFINE_CONSTANT(target, LOG_LPR);
-	NODE_DEFINE_CONSTANT(target, LOG_NEWS);
-	NODE_DEFINE_CONSTANT(target, LOG_UUCP);
-	NODE_DEFINE_CONSTANT(target, LOG_CRON);
-	NODE_DEFINE_CONSTANT(target, LOG_LOCAL0);
-	NODE_DEFINE_CONSTANT(target, LOG_LOCAL1);
-	NODE_DEFINE_CONSTANT(target, LOG_LOCAL2);
-	NODE_DEFINE_CONSTANT(target, LOG_LOCAL3);
-	NODE_DEFINE_CONSTANT(target, LOG_LOCAL4);
-	NODE_DEFINE_CONSTANT(target, LOG_LOCAL5);
-	NODE_DEFINE_CONSTANT(target, LOG_LOCAL6);
-	NODE_DEFINE_CONSTANT(target, LOG_LOCAL7);
+  // Priorities
+  exports.Set("LOG_EMERG", Number::New(env, LOG_EMERG));
+  exports.Set("LOG_ALERT", Number::New(env, LOG_ALERT));
+  exports.Set("LOG_ERR", Number::New(env, LOG_ERR));
+  exports.Set("LOG_WARNING", Number::New(env, LOG_WARNING));
+  exports.Set("LOG_NOTICE", Number::New(env, LOG_NOTICE));
+  exports.Set("LOG_INFO", Number::New(env, LOG_INFO));
+  exports.Set("LOG_DEBUG", Number::New(env, LOG_DEBUG));
 
-	NODE_DEFINE_CONSTANT(target, LOG_PID);
-	NODE_DEFINE_CONSTANT(target, LOG_CONS);
-	NODE_DEFINE_CONSTANT(target, LOG_NDELAY);
+  // Facilities
+  exports.Set("LOG_KERN", Number::New(env, LOG_KERN));
+  exports.Set("LOG_USER", Number::New(env, LOG_USER));
+  exports.Set("LOG_MAIL", Number::New(env, LOG_MAIL));
+  exports.Set("LOG_DAEMON", Number::New(env, LOG_DAEMON));
+  exports.Set("LOG_AUTH", Number::New(env, LOG_AUTH));
+  exports.Set("LOG_LPR", Number::New(env, LOG_LPR));
+  exports.Set("LOG_NEWS", Number::New(env, LOG_NEWS));
+  exports.Set("LOG_UUCP", Number::New(env, LOG_UUCP));
+  exports.Set("LOG_CRON", Number::New(env, LOG_CRON));
+  exports.Set("LOG_LOCAL0", Number::New(env, LOG_LOCAL0));
+  exports.Set("LOG_LOCAL1", Number::New(env, LOG_LOCAL1));
+  exports.Set("LOG_LOCAL2", Number::New(env, LOG_LOCAL2));
+  exports.Set("LOG_LOCAL3", Number::New(env, LOG_LOCAL3));
+  exports.Set("LOG_LOCAL4", Number::New(env, LOG_LOCAL4));
+  exports.Set("LOG_LOCAL5", Number::New(env, LOG_LOCAL5));
+  exports.Set("LOG_LOCAL6", Number::New(env, LOG_LOCAL6));
+  exports.Set("LOG_LOCAL7", Number::New(env, LOG_LOCAL7));
+
+  // Options
+  exports.Set("LOG_PID", Number::New(env, LOG_PID));
+  exports.Set("LOG_CONS", Number::New(env, LOG_CONS));
+  exports.Set("LOG_NDELAY", Number::New(env, LOG_NDELAY));
+
+  return exports;
 }
 
-NODE_MODULE(syslog, init);
+NODE_API_MODULE(syslog, Init)

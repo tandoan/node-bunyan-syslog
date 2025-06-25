@@ -1,8 +1,7 @@
 {
-  "name": "bunyan-syslog",
+  "name": "bunyan-syslog-napi",
   "description": "Syslog Stream for Bunyan",
-  "version": "0.3.4",
-  "author": "Mark Cavage",
+  "version": "0.4",
   "license": "MIT",
   "main": "./lib/index.js",
   "keywords": [
@@ -16,6 +15,7 @@
   "dependencies": {
     "assert-plus": "0.1.5",
     "nan": "^2.17.0",
+    "node-addon-api": "^7.1.1",
     "node-gyp": "^9.4.0",
     "safer-buffer": "~2.1.0"
   },
