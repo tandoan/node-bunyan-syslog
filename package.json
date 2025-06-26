@@ -1,7 +1,7 @@
 {
   "name": "bunyan-syslog-napi",
   "description": "Syslog Stream for Bunyan",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "license": "MIT",
   "main": "./lib/index.js",
   "keywords": [
@@ -14,7 +14,6 @@
   "bugs": {},
   "dependencies": {
     "assert-plus": "0.1.5",
-    "nan": "^2.17.0",
     "node-addon-api": "^7.1.1",
     "node-gyp": "^9.4.0",
     "safer-buffer": "~2.1.0"
@@ -27,8 +26,10 @@
     "istanbul": "^0.3.6",
     "tape": "^4.11.0"
   },
+  "gypfile": true,
   "scripts": {
-    "test": "istanbul cover --print none test/run.js"
+    "test": "istanbul cover --print none test/run.js",
+    "install": "node-gyp rebuild"
   },
   "engines": {
     "node": ">=0.10.0"
