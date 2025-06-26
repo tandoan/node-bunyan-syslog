@@ -28,7 +28,7 @@
     "tape": "^4.11.0"
   },
   "scripts": {
-    "test": "./node_modules/.bin/istanbul cover --print none test/run.js"
+    "test": "istanbul cover --print none test/run.js"
   },
   "engines": {
     "node": ">=0.10.0"
