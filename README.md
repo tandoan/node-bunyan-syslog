@@ -1,15 +1,15 @@
-bunyan-syslog is a stream for [bunyan](https://github.com/trentm/node-bunyan)
+bunyan-syslog-napi is a stream for [bunyan](https://github.com/trentm/node-bunyan)
 that consumes `raw` records from bunyan and sends them to a syslog server.
 
 # Installation
 
-    npm install bunyan-syslog
+    npm install bunyan-syslog-napi
 
 # Usage
 
 ```javascript
 var bunyan = require('bunyan');
-var bsyslog = require('bunyan-syslog');
+var bsyslog = require('bunyan-syslog-napi');
 
 var log = bunyan.createLogger({
 	name: 'foo',
